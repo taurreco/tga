@@ -6,9 +6,79 @@
 
 /*********************************************************************
  *                                                                   *
+ *                      private data structures                      *
+ *                                                                   *
+ *********************************************************************/
+
+/**********
+ * header *
+ **********/
+
+/* holds the header of a tga in memory */
+
+struct header {
+   uint8_t id_len;
+   uint8_t color_type;
+   uint8_t data_type;
+   int16_t color_start;
+   int16_t color_len;
+   uint8_t color_depth;
+   int16_t x;
+   int16_t y;
+   int16_t w;
+   int16_t h;
+   uint8_t pixel_depth;
+   uint8_t desc;
+};
+
+/*******
+ * tga *
+ *******/
+
+/* represents the tga file in memory */
+
+struct tga {
+   struct header header;
+   uint8_t* colors;
+   uint8_t* pixels;
+};
+
+
+/*********************************************************************
+ *                                                                   *
  *                          private helpers                          *
  *                                                                   *
  *********************************************************************/
+
+/**********
+ * readu8 *
+ **********/
+
+void
+readu8(uint8_t* dst, FILE* fp)
+{
+    fread(dst, 1, 1, fp);
+}
+
+/***********
+ * readu16 *
+ ***********/
+
+void
+readu16(uint16_t* dst, FILE* fp)
+{
+    fread(dst, 1, 2, fp);
+}
+
+/***********
+ * readbuf *
+ ***********/
+
+void
+readbuf(void* dst, int len, FILE* fp)
+{
+    fread(dst, 1, len, fp);
+}
 
 /**********
  * unpack *
@@ -28,9 +98,10 @@ unpack(uint8_t* bytes, int n_bytes)
 
     switch (n_bytes) {
         
-	case 2:    /* ARRRRRGG GGGBBBBB XXXXXXXX XXXXXXXX */
-
-            /* grab 5-bit representation of each color */
+	case 2:
+            /* ARRRRRGG GGGBBBBB */
+            
+	    /* grab 5-bit representation of each color */
          
 	    r = (bytes[1] >> 2) & 0x1F;
             g = ((bytes[1] << 3) & 0x18) | ((bytes[0] >> 5) & 0x07);
@@ -48,15 +119,19 @@ unpack(uint8_t* bytes, int n_bytes)
            
 	    break;
 
-        case 3:    /* RRRRRRRR GGGGGGGG BBBBBBBB XXXXXXXX */
+        case 3:   
+	    /* RRRRRRRR GGGGGGGG BBBBBBBB */
+
             a = 255;
             r = bytes[2];
             g = bytes[1];
             b = bytes[0];
             break;
         
-	case 4:    /* AAAAAAAA RRRRRRRR GGGGGGGG BBBBBBBB */
-            a = bytes[3];
+	case 4:  
+            /* AAAAAAAA RRRRRRRR GGGGGGGG BBBBBBBB */
+            
+	    a = bytes[3];
             r = bytes[2];
             g = bytes[1];
             b = bytes[0];
@@ -75,39 +150,40 @@ unpack(uint8_t* bytes, int n_bytes)
 void
 read(struct tga* tga, FILE* fp)
 {
-    int pixel_depth, color_depth, n;
-
-    n = 0;
+    struct header* header;
+    uint8_t *colors, *pixels;
+    int pixel_bytes, color_bytes;
     
     /* fill header */
-    n += fread(&tga->header.id_len, 1, 1, fp);
-    n += fread(&tga->header.color_map_type, 1, 1, fp);
-    n += fread(&tga->header.data_type_code, 1, 1, fp);
-    n += fread(&tga->header.color_map_origin, 1, 2, fp);
-    n += fread(&tga->header.color_map_len, 1, 2, fp);
-    n += fread(&tga->header.color_map_depth, 1, 1, fp);
-    n += fread(&tga->header.x_origin, 1, 2, fp);
-    n += fread(&tga->header.y_origin, 1, 2, fp);
-    n += fread(&tga->header.width, 1, 2, fp);
-    n += fread(&tga->header.height, 1, 2, fp);
-    n += fread(&tga->header.bits_per_pixel, 1, 1, fp);
-    n += fread(&tga->header.image_descriptor, 1, 1, fp);
+    
+    readu8(&header->id_len, fp);
+    readu8(&header->color_type, fp);
+    readu8(&header->data_type, fp);
+    readu16(&header->color_origin, fp);
+    readu16(&header->color_len, fp);
+    readu8(&header->color_depth, fp);
+    readu16(&header->x, fp);
+    readu16(&header->y, fp);
+    readu16(&header->w, fp);
+    readu16(&header->h, fp);
+    readu8(&header->pixel_depth, fp);
+    readu8(&header->desc, fp);
 
-    pixel_depth = tga->header.bits_per_pixel / 8;
-    color_depth = tga->header.color_map_depth / 8;
-   
-    tga->color_map = calloc(tga->header.color_map_len * color_depth, 1);
-    tga->image_data = calloc(tga->header.width * 
-                             tga->header.height * 
-                             pixel_depth, 1);
+    pixel_bytes = header->pixel_depth / 8;
+    color_bytes = header->color_depth / 8;
 
-    fseek(fp, tga->header.id_len, SEEK_CUR);
-    n += fread(tga->color_map, 1, tga->header.color_map_len * color_depth, fp);
-    n += fread(tga->image_data, 1, 
-          tga->header.width * 
-          tga->header.height * 
-          pixel_depth, 
-          fp);
+    /* fill color map and image data */
+
+    colors = calloc(header->color_len * color_bytes, 1);
+    pixels = calloc(header->w * header->h * pixel_bytes, 1);
+
+    fseek(fp, header->id_len, SEEK_CUR);
+    readbuf(colors, header->color_len * color_bytes, fp);
+    readbuf(pixels, header->w * header->h * pixel_bytes, fp);
+
+    tga->header = *header;
+    tga->colors = colors;
+    tga->pixels = pixels;
 }
 
 /*********************************************************************
