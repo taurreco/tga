@@ -3,6 +3,6 @@
 
 #include <stdint.h>
 
-void tga_load(char* file, uint32_t** colors, int* width, int* height);
+int tga_load(char* file, uint32_t** colors, int* width, int* height);
 
 #endif    /* TGA_H */
