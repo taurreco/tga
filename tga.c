@@ -79,21 +79,22 @@ unpack(uint8_t* bytes, int n_bytes)
     b = 0;
 
     if (n_bytes == 2) {
-        /* grab 5-bit representation of each color */
+        
+	/* grab 5-bit representation of each color */
          
-	 r = (bytes[1] >> 2) & 0x1F;
-         g = ((bytes[1] << 3) & 0x18) | ((bytes[0] >> 5) & 0x07);
-         b = (bytes[0]) & 0x1F;
+	r = (bytes[1] >> 2) & 0x1F;
+        g = ((bytes[1] << 3) & 0x18) | ((bytes[0] >> 5) & 0x07);
+        b = (bytes[0]) & 0x1F;
 
-         /* scale channels by 8.2258 */
+        /* scale channels by 8.2258 */
          
-	 r = (r << 3) | (r >> 2);
-         g = (g << 3) | (g >> 2);
-         b = (b << 3) | (b >> 2);
+	r = (r << 3) | (r >> 2);
+        g = (g << 3) | (g >> 2);
+        b = (b << 3) | (b >> 2);
 
-         /* attribute channel */
+        /* attribute channel */
          
-	 a = 255 * ((bytes[0] & 0x80) >> 7);
+	a = 255 * ((bytes[0] & 0x80) >> 7);
     }
 
     if (n_bytes == 3) {   
@@ -118,7 +119,8 @@ unpack(uint8_t* bytes, int n_bytes)
  **********/
 
 void
-mapped(struct header* hdr, uint32_t* data, uint8_t* cmap, uint8_t* img)
+mapped(struct header* ihdr, uint32_t* data, 
+       uint8_t* cmap, uint8_t* img)
 {
     for (int i = 0; i < header->img_w * header->img_h; i++) {
         bytes = cmap + img[i] * n_bytes;
@@ -195,7 +197,8 @@ rle(struct header* hdr, uint32_t* data, uint8_t* cmap, uint8_t* img)
 /* placeholder */
 
 int
-parse(struct header* ihdr, uint32_t* data, uint8_t* cmap, uint8_t* img)
+parse(struct header* ihdr, uint32_t* data, 
+      uint8_t* cmap, uint8_t* img)
 {
     stride = color_bytes;
     bytes = tga.colors + packet[1];
